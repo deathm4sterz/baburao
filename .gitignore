@@ -1,4 +1,7 @@
 /target
+.env
+.envrc
+
 # Created by https://www.toptal.com/developers/gitignore/api/emacs,git,intellij+all,visualstudiocode,vim,rust
 # Edit at https://www.toptal.com/developers/gitignore?templates=emacs,git,intellij+all,visualstudiocode,vim,rust
 
@@ -212,4 +215,3 @@ tags
 .ionide
 
 # End of https://www.toptal.com/developers/gitignore/api/emacs,git,intellij+all,visualstudiocode,vim,rust
-

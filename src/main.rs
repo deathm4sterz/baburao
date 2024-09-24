@@ -1,7 +1,6 @@
 use poise::serenity_prelude as serenity;
 use regex::Regex;
 use reqwest::Error as ReqwestError;
-use serde::Deserialize;
 
 const PLAYER_IDS: &[&str] = &[
     "9997875", // Kratos
@@ -15,13 +14,6 @@ const PLAYER_IDS: &[&str] = &[
 struct Data {} // User data, which is stored and accessible in all command invocations
 type Error = Box<dyn std::error::Error + Send + Sync>;
 type Context<'a> = poise::Context<'a, Data, Error>;
-
-/// Struct to represent the expected JSON response from the API
-#[derive(Deserialize)]
-struct RankApiResponse {
-    rank: String,
-    // other fields can be here
-}
 
 /// Displays your or another user's account creation date
 #[poise::command(slash_command, prefix_command)]
@@ -116,12 +108,7 @@ async fn leaderboard(
     Ok(())
 }
 
-/// Function to make the HTTP GET request and fetch the rank data
-async fn fetch_rank_from_api(url: &str) -> Result<RankApiResponse, ReqwestError> {
-    let response = reqwest::get(url).await?.json::<RankApiResponse>().await?;
-    Ok(response)
-}
-
+/// Function to make the HTTP GET request and fetch the text
 async fn read_text_from_url(url: String) -> Result<String, ReqwestError> {
     let response = reqwest::get(url).await?.text().await?;
     Ok(response)

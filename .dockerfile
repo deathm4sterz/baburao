@@ -1,0 +1,4 @@
+.gitignore
+target/
+.git/
+Dockerfile

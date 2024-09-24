@@ -3,15 +3,16 @@ use regex::Regex;
 use reqwest::Error as ReqwestError;
 
 const PLAYER_IDS: &[&str] = &[
-    "9997875", // Kratos
-    "6903668", // Nagraj
-    "1489563", // deadmeat
+    "9997875",  // Kratos
+    "6903668",  // Nagraj
+    "1489563",  // deadmeat
     "15625569", // CVS
-    "2543215", // marathaSun
-    "1228227", // hjpotter92
+    "2543215",  // marathaSun
+    "1228227",  // hjpotter92
 ];
 
 struct Data {} // User data, which is stored and accessible in all command invocations
+
 type Error = Box<dyn std::error::Error + Send + Sync>;
 type Context<'a> = poise::Context<'a, Data, Error>;
 
@@ -75,9 +76,11 @@ async fn rank(
     ctx: Context<'_>,
     #[description = "In-game player name to search"] player_name: String,
 ) -> Result<(), Error> {
-    let response = read_text_from_url(
-        format!("https://www.aoe2insights.com/nightbot/rank/3/?query={}&default_user_id=12348548", player_name)
-    ).await?;
+    let response = read_text_from_url(format!(
+        "https://www.aoe2insights.com/nightbot/rank/3/?query={}&default_user_id=12348548",
+        player_name
+    ))
+    .await?;
     ctx.say(response).await?;
     Ok(())
 }
@@ -88,23 +91,30 @@ async fn team_rank(
     ctx: Context<'_>,
     #[description = "In-game player name to search"] player_name: String,
 ) -> Result<(), Error> {
-    let response = read_text_from_url(
-        format!("https://www.aoe2insights.com/nightbot/rank/4/?query={}&default_user_id=12348548", player_name)
-    ).await?;
+    let response = read_text_from_url(format!(
+        "https://www.aoe2insights.com/nightbot/rank/4/?query={}&default_user_id=12348548",
+        player_name
+    ))
+    .await?;
     ctx.say(response).await?;
     Ok(())
 }
 
 // Show server-local leaderboard
 #[poise::command(slash_command)]
-async fn leaderboard(
-    ctx: Context<'_>,
-) -> Result<(), Error> {
+async fn leaderboard(ctx: Context<'_>) -> Result<(), Error> {
     let user_ids: String = PLAYER_IDS.join(",");
-    let response = read_text_from_url(
-        format!("https://www.aoe2insights.com/nightbot/leaderboard/3/?user_ids={}&rank=global&limit=5", user_ids)
-    ).await?;
-    ctx.say(response.replace("(by aoe2insights.com)", "").replace(", ", "\n")).await?;
+    let response = read_text_from_url(format!(
+        "https://www.aoe2insights.com/nightbot/leaderboard/3/?user_ids={}&rank=global&limit=5",
+        user_ids
+    ))
+    .await?;
+    ctx.say(
+        response
+            .replace("(by aoe2insights.com)", "")
+            .replace(", ", "\n"),
+    )
+    .await?;
     Ok(())
 }
 

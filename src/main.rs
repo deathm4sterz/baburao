@@ -77,7 +77,7 @@ async fn rank(
     #[description = "In-game player name to search"] player_name: String,
 ) -> Result<(), Error> {
     let response = read_text_from_url(format!(
-        "https://www.aoe2insights.com/nightbot/rank/3/?query={}&default_user_id=12348548",
+        "https://data.aoe2companion.com/api/nightbot/rank?leaderboard_id=3&search={}&profile_id=12348548&flag=true",
         player_name
     ))
     .await?;
@@ -92,7 +92,7 @@ async fn team_rank(
     #[description = "In-game player name to search"] player_name: String,
 ) -> Result<(), Error> {
     let response = read_text_from_url(format!(
-        "https://www.aoe2insights.com/nightbot/rank/4/?query={}&default_user_id=12348548",
+        "https://data.aoe2companion.com/api/nightbot/rank?leaderboard_id=4&search={}&profile_id=12348548&flag=true",
         player_name
     ))
     .await?;
@@ -127,7 +127,8 @@ async fn read_text_from_url(url: String) -> Result<String, ReqwestError> {
 #[tokio::main]
 async fn main() {
     let token = std::env::var("DISCORD_TOKEN").expect("missing DISCORD_TOKEN");
-    let intents = serenity::GatewayIntents::non_privileged();
+    let intents =
+        serenity::GatewayIntents::non_privileged() | serenity::GatewayIntents::MESSAGE_CONTENT;
 
     let framework = poise::Framework::builder()
         .options(poise::FrameworkOptions {
@@ -137,6 +138,7 @@ async fn main() {
         .setup(|ctx, _ready, framework| {
             Box::pin(async move {
                 poise::builtins::register_globally(ctx, &framework.options().commands).await?;
+                println!("Bot is online");
                 Ok(Data {})
             })
         })

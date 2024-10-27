@@ -1,3 +1,6 @@
+use log::{debug, error, info};
+use std::env::var;
+
 use poise::serenity_prelude as serenity;
 use regex::Regex;
 use reqwest::Error as ReqwestError;
@@ -10,8 +13,10 @@ const PLAYER_IDS: &[&str] = &[
     "2543215",  // marathaSun
     "1228227",  // hjpotter92
 ];
+const NIGBOT_API_URL: &str = "https://data.aoe2companion.com/api/nightbot/rank";
 
-struct Data {} // User data, which is stored and accessible in all command invocations
+// Custom user data passed to all command functions
+pub struct Data {}
 
 type Error = Box<dyn std::error::Error + Send + Sync>;
 type Context<'a> = poise::Context<'a, Data, Error>;
@@ -28,6 +33,35 @@ async fn age(
     Ok(())
 }
 
+fn generate_reply(match_id: &str) -> poise::CreateReply {
+    let response = format!("Extracted Match ID: **{}**", match_id);
+
+    let components = vec![serenity::CreateActionRow::Buttons(vec![
+        serenity::CreateButton::new_link(format!(
+            "https://httpbin.org/redirect-to?url=aoe2de://0/{}",
+            match_id
+        ))
+        .label("Join lobby in game")
+        .style(poise::serenity_prelude::ButtonStyle::Success),
+        serenity::CreateButton::new_link(format!(
+            "https://httpbin.org/redirect-to?url=aoe2de://1/{}",
+            match_id
+        ))
+        .label("Spectate match by clicking here")
+        .style(poise::serenity_prelude::ButtonStyle::Primary),
+        serenity::CreateButton::new_link(format!(
+            "https://www.aoe2insights.com/match/{}/",
+            match_id
+        ))
+        .label("Post-match analysis (on aoe2insights)")
+        .style(poise::serenity_prelude::ButtonStyle::Secondary),
+    ])];
+
+    poise::CreateReply::default()
+        .content(response)
+        .components(components)
+}
+
 /// Show match information after extracting a 9-digit match ID
 #[poise::command(slash_command)]
 async fn match_info(
@@ -40,30 +74,10 @@ async fn match_info(
     // Search for the 9-digit number in the match_id string
     if let Some(captures) = re.captures(&match_id) {
         let extracted_id = &captures[0]; // This is the extracted 9-digit number
-        let response = format!("Extracted Match ID: {}", extracted_id);
-
-        let reply = {
-            let components = vec![serenity::CreateActionRow::Buttons(vec![
-                serenity::CreateButton::new_link(format!(
-                    "https://httpbin.org/redirect-to?url=aoe2de://0/{}",
-                    extracted_id
-                ))
-                .label("Join lobby in game") // Button label
-                .style(poise::serenity_prelude::ButtonStyle::Success),
-                serenity::CreateButton::new_link(format!(
-                    "https://httpbin.org/redirect-to?url=aoe2de://1/{}",
-                    extracted_id
-                ))
-                .label("Spectate match by clicking here") // Button label
-                .style(poise::serenity_prelude::ButtonStyle::Primary),
-            ])];
-
-            poise::CreateReply::default()
-                .content(response)
-                .components(components)
-        };
+        let reply = generate_reply(extracted_id);
         ctx.send(reply).await?;
     } else {
+        error!("Invalid input for match_id: {}", &match_id);
         ctx.say("No 9-digit match ID found in the input.").await?;
     }
 
@@ -77,8 +91,8 @@ async fn rank(
     #[description = "In-game player name to search"] player_name: String,
 ) -> Result<(), Error> {
     let response = read_text_from_url(format!(
-        "https://data.aoe2companion.com/api/nightbot/rank?leaderboard_id=3&search={}&profile_id=12348548&flag=true",
-        player_name
+        "{}?leaderboard_id=3&search={}&profile_id=12348548&flag=true",
+        NIGBOT_API_URL, player_name
     ))
     .await?;
     ctx.say(response).await?;
@@ -92,8 +106,8 @@ async fn team_rank(
     #[description = "In-game player name to search"] player_name: String,
 ) -> Result<(), Error> {
     let response = read_text_from_url(format!(
-        "https://data.aoe2companion.com/api/nightbot/rank?leaderboard_id=4&search={}&profile_id=12348548&flag=true",
-        player_name
+        "{}?leaderboard_id=4&search={}&profile_id=12348548&flag=true",
+        NIGBOT_API_URL, player_name
     ))
     .await?;
     ctx.say(response).await?;
@@ -124,21 +138,65 @@ async fn read_text_from_url(url: String) -> Result<String, ReqwestError> {
     Ok(response)
 }
 
+async fn event_handler(
+    ctx: &serenity::Context,
+    event: &serenity::FullEvent,
+    _framework: poise::FrameworkContext<'_, Data, Error>,
+    _data: &Data,
+) -> Result<(), Error> {
+    let re = Regex::new(r"\b\d{9}\b").unwrap();
+
+    match event {
+        serenity::FullEvent::Ready { data_about_bot, .. } => {
+            debug!("Logged in as {}", data_about_bot.user.name);
+        }
+        serenity::FullEvent::Message { new_message } => {
+            if new_message.content.to_lowercase().contains("aoe2de")
+                && new_message.author.id != ctx.cache.current_user().id
+            {
+                if let Some(captures) = re.captures(&new_message.content.to_lowercase()) {
+                    let extracted_id = &captures[0]; // This is the extracted 9-digit number
+                    let reply = generate_reply(extracted_id);
+                    info!("Received aoe2de link {}", new_message.content);
+                    new_message
+                        .channel_id
+                        .send_message(
+                            ctx,
+                            poise::serenity_prelude::CreateMessage::default()
+                                .content(reply.content.expect("Not message content?"))
+                                .components(reply.components.expect("No components found")),
+                        )
+                        .await?;
+                } else {
+                    error!("Failed to find aoe2de link in {}", new_message.content)
+                }
+            }
+        }
+        _ => {}
+    }
+    Ok(())
+}
+
 #[tokio::main]
 async fn main() {
-    let token = std::env::var("DISCORD_TOKEN").expect("missing DISCORD_TOKEN");
+    env_logger::init();
+
+    let token = var("DISCORD_TOKEN").expect("missing DISCORD_TOKEN");
     let intents =
         serenity::GatewayIntents::non_privileged() | serenity::GatewayIntents::MESSAGE_CONTENT;
 
     let framework = poise::Framework::builder()
         .options(poise::FrameworkOptions {
             commands: vec![age(), match_info(), rank(), team_rank(), leaderboard()],
+            event_handler: |ctx, event, framework, data| {
+                Box::pin(event_handler(ctx, event, framework, data))
+            },
             ..Default::default()
         })
         .setup(|ctx, _ready, framework| {
             Box::pin(async move {
                 poise::builtins::register_globally(ctx, &framework.options().commands).await?;
-                println!("Bot is online");
+                info!("Bot is online");
                 Ok(Data {})
             })
         })

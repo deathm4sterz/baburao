@@ -15,6 +15,7 @@ const PLAYER_IDS: &[&str] = &[
     "15144378", // joettli
     "11959979", // Dancing Doggo
     "1228227",  // hjpotter92
+    "5968579", // N.O.P.E
 ];
 const NIGBOT_API_URL: &str = "https://data.aoe2companion.com/api/nightbot/rank";
 

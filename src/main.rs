@@ -4,6 +4,7 @@ use std::env::var;
 use poise::serenity_prelude as serenity;
 use regex::Regex;
 use reqwest::Error as ReqwestError;
+use reqwest::header::USER_AGENT;
 
 const PLAYER_IDS: &[&str] = &[
     "9997875",  // Kratos
@@ -138,8 +139,13 @@ async fn leaderboard(ctx: Context<'_>) -> Result<(), Error> {
 
 /// Function to make the HTTP GET request and fetch the text
 async fn read_text_from_url(url: String) -> Result<String, ReqwestError> {
-    let response = reqwest::get(url).await?.text().await?;
-    Ok(response)
+    let client = reqwest::Client::new();
+    let response = client
+        .get(url)
+        .header(USER_AGENT, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
+        .send()
+        .await?;
+    Ok(response.text().await?)
 }
 
 async fn event_handler(
